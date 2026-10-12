@@ -1,7 +1,8 @@
 # sm64ds × minecraft (steve mod) — research notes
 
 ## inputs (kept local, never committed)
-- rom: Super Mario 64 DS (USA) rev0, game code `ASME`, sha1 `a5b8bd846725965c588b6fc591f1fe822f7bbdbd`
+- **target rom: Super Mario 64 DS (Europe) rev0, game code `ASMP`, sha1 `1367529f2cb23e76ef295cb1727333ae8f0a6cd7`**
+- (unused) USA rev0 `ASME`, sha1 `a5b8bd846725965c588b6fc591f1fe822f7bbdbd` — community symbols don't fit it
 - minecraft: 1.21.6 client.jar, sha1 `740a125b83dd3447feaa3c5e891ead7fbb21ae28` (matches mojang's official build)
 
 ## minecraft reference pipeline
@@ -20,3 +21,11 @@
 - tangOS sm64ds-decomp: first 64KB of arm9 matches USA rev0, then drifts (-0x124, +0x374, ...) —
   also not USA rev0. `tools/symcheck.py` reproduces this.
 - SM64DSe-Ultimate supports EUR / USA_v1 (rev0) / USA_v2 / JAP for level + model editing.
+
+## region verification (`tools/pushcheck.py`: symbol addrs landing on a `push {...}` prologue)
+| symbols | USA rev0 | EUR rev0 | random |
+|---|---|---|---|
+| SM64DS-PI symbols9.x | 3.7% | **55.7%** | ~1.3% |
+| sm64ds-decomp symbols.txt | 3.2% | **44.4%** | ~1.1% |
+- `Player::Behavior` (0x020e4d24) lives in **overlay 2** and begins `push {r4-r6, lr}` on EUR.
+- non-hits are mostly leaf functions (no push) and data symbols. => build against EUR.
