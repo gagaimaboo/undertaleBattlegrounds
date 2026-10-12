@@ -1,0 +1,8 @@
+# never commit game data: roms, minecraft jars, decompiled/extracted output
+*.nds
+*.jar
+*.zip
+rom/
+mc/
+extracted/
+build/
