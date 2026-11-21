@@ -6,3 +6,6 @@ rom/
 mc/
 extracted/
 build/
+*.state
+*.state.probe
+dswork/

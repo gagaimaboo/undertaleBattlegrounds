@@ -29,3 +29,35 @@
 | sm64ds-decomp symbols.txt | 3.2% | **44.4%** | ~1.1% |
 - `Player::Behavior` (0x020e4d24) lives in **overlay 2** and begins `push {r4-r6, lr}` on EUR.
 - non-hits are mostly leaf functions (no push) and data symbols. => build against EUR.
+
+## phase 1: code injection — WORKING (verified in emulator)
+build + patch + test (needs `gcc-arm-none-eabi`, `pip install ndspy pillow`, `libretro-desmume`):
+```
+make -C mod
+python3 -I tools/patch_rom.py <clean_eur.nds> mod/build/mod.elf out.nds
+python3 -I tools/boot_to_control.py out.nds mod/build/mod.elf control.state   # cold boot -> playable yoshi
+python3 -I tools/test_float.py out.nds mod/build/mod.elf control.state        # PASS/FAIL
+```
+how it works:
+- mod is linked at `0x0214EAA0` (end of highest overlay ov102 = vanilla main-arena start) and added
+  as a 4th ARM9 **autoload** section; crt0 copies it there at boot (confirmed byte-exact in RAM).
+- `OS_GetInitArenaLo` returns literal `0x02058DE0`; patched to the mod's end so the heap starts
+  after us (confirmed: player objects allocate at `0x0217xxxx`, above the mod).
+- hooks overwrite one instruction with `b trampoline`; trampoline saves regs, calls C++,
+  replays the instruction, jumps back. patcher checks every original word before touching it.
+  - `0x020E4D24` Player::Behavior entry (`push {r4-r6,lr}`, this=r0)
+  - `0x020E50AC` inside Behavior (`mul r0,r4,r0`, this=r5, all regs live)
+
+findings:
+- gravity: each logic frame `speed.y += vertAccel` (Actor+0x9C) **after** both hook points.
+  vertAccel depends on state (−2.7 holding jump, −8.0 after release, −3.6 falling, −4.0 idle);
+  ground forces speed.y = −8 and snaps to floor. to set a speed that survives: write `want − vertAccel`.
+- game logic runs at 30 Hz (Behavior every 2nd video frame). intro cutscene has 3 Player objects
+  (mario/luigi/wario) running Behavior — hooks must not assume a single player.
+- you start as **yoshi**; first controllable at ~9200 frames after cold boot with the boot script.
+
+emulator harness (`tools/dsrun.py`): ctypes libretro frontend over DeSmuME 0.9.11.
+- core exposes no RAM pointer -> RAM read from save states (located via the mod's own bytes).
+- touch needs core options `desmume_pointer_mouse=enable`, `desmume_pointer_type=touch`.
+- with this core's default mapping, RetroPad **B** = jump in-game; L/R map directly.
+- save states contain all RAM incl. code: always regenerate states after rebuilding the mod.
