@@ -9,3 +9,4 @@ build/
 *.state
 *.state.probe
 dswork/
+__pycache__/
